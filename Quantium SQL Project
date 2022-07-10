@@ -1,0 +1,207 @@
+-- Selecting the data
+
+SELECT *
+FROM 
+     QVI_transaction
+-- AND
+
+SELECT *
+FROM 
+     QVI_Customer
+
+-- Checking for outliers
+
+SELECT
+     Product_Quantity
+FROM 
+     QVI_transaction
+ORDER BY 1 DESC
+
+SELECT
+     Product_Quantity
+FROM
+     QVI_transaction
+ORDER BY 1
+
+--There are no outliers and datatypes for each column have been verified correctly before importing the data to the server
+
+
+-- Let's see the Total Sales generated over the year
+
+SELECT 
+     ROUND(SUM(Total_sales), 0) AS Total_Sales
+FROM 
+     QVI_transaction
+
+-- Julia has a Total Sales of $1,805,177
+
+
+-- Let's also see the total number of Customers for the year
+
+SELECT 
+     COUNT(DISTINCT LYLTY_CARD_NBR) AS Total_Customers
+FROM 
+     QVI_transaction
+
+-- A total of 71,287 Customers
+
+
+-- We want query for the Total Sales per each customer segment to present to Julia her top 3 Customers that generated the Highest Sales
+-- Note that Customer Segement is a factor of Lifestage and Premium_Customer
+
+SELECT
+      C.Lifestage,
+      C.Premium_customer,
+      ROUND(SUM(Total_Sales), 0) AS TotalSales
+FROM 
+     QVI_transaction AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY 
+     C.Lifestage, 
+     C.Premium_customer
+ORDER BY 3 DESC
+
+-- Julia's top 3 Customers that generated more sales are:
+-- 1. Older families with a Budget, 
+-- 2. Young Singles/Couples with Mainstream,
+-- 3. Retirees with Mainstream.
+
+
+-- Exploring the data, it will be good to know if 'Older families with a Budget' are the highest due to the Number of Customers who bought more chips.
+-- We want to know the total number Customers per each Customer Segment.
+
+SELECT
+      C.Lifestage,
+      C.Premium_customer,
+      COUNT(Distinct T.LYLTY_CARD_NBR) AS Total_Customers 
+FROM
+     QVI_transaction AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY 
+     C.Lifestage,
+     C.Premium_customer
+ORDER BY 3 DESC
+
+-- After pulling out this query, Young Singles/Couples Mainstream had the highest number of Customers. 
+-- This contributes to there being more sales to these customer segments but this is not a major driver for the Budget - Older families segment.
+
+
+-- Over to how many chips are bought per customer by segment i.e Who Buys More?
+
+SELECT
+      C.Lifestage,
+      SUM(Product_Quantity)/COUNT(DISTINCT T.LYLTY_CARD_NBR) AS AverageUnitTransaction
+FROM 
+     QVI_transaction AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY 
+     C.Lifestage
+ORDER BY 2 DESC
+
+-- Older Familes will buy more chips followed by Young Families and Older Singles/Couples.
+
+
+-- We can also dig more by finding out the average chip price by customer segment i.e Who Pays More?
+
+SELECT
+      C.Lifestage,
+      C.Premium_customer,
+      ROUND(SUM(Total_Sales)/SUM(Product_Quantity),2) AS AverageChipPrice
+FROM
+     QVI_transaction AS T
+JOIN
+     QVI_Customer AS C
+ON
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY
+     C.Lifestage,
+     C.Premium_customer
+ORDER BY 3 DESC
+
+-- Here we can see Young Singles/Couples Mainstream will pay more to buy chips. Followed by Midage Singles/Couples Mainstream.
+
+
+--We want to know the top 5 pack size that generated most Sales in general
+
+SELECT
+      TOP 5(Pack_Size),
+      ROUND(SUM(Total_Sales), 0) AS Total_Sales
+FROM
+     QVI_transaction AS T
+JOIN
+     QVI_Customer AS C
+ON
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY
+     Pack_Size
+ORDER BY 2 DESC
+
+-- 175g geenerated the most sales with a sales of $485,431
+
+
+-- Lastly, let's see each month with their total sales
+-- Firstly we need to summarize the total sales by each month of the year
+
+SELECT 
+      YEAR(date) AS Year,
+      MONTH(date) AS Month,
+      ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
+FROM
+     QVI_transaction AS T
+JOIN
+     QVI_Customer AS C
+ON
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+GROUP BY 
+     YEAR(date),
+     MONTH(date)
+ORDER BY 1,2
+
+-- Next we need to determine the highest Monthly_Sales
+
+SELECT
+      MAX(Monthly_Sales)
+FROM (
+    SELECT 
+         YEAR(date) AS Year,
+         MONTH(date) AS Month,
+         ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
+    FROM 
+         QVI_transaction AS T
+    JOIN
+         QVI_Customer AS C
+    ON 
+         T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+    GROUP BY
+         YEAR(date),
+         MONTH(date)) AS Y
+
+-- The maximum sales is $156,462. Now we can figure out the month and year with the highest Sales
+
+SELECT *
+FROM (
+    SELECT 
+         YEAR(date) AS Year,
+         MONTH(date) AS Month,
+         ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
+    FROM
+         QVI_transaction AS T
+    JOIN
+         QVI_Customer AS C
+    ON
+         T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+    GROUP BY
+         YEAR(date),
+         MONTH(date)) AS T1
+WHERE Monthly_Sales = 156462
+
+-- The month_year sales was highest is December 2018 with a Total Sales of $156,462
