@@ -2,28 +2,45 @@
 
 SELECT *
 FROM 
-     QVI_transaction
--- AND
+     QVI_transaction_data AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
 
-SELECT *
-FROM 
-     QVI_Customer
+-- 264,836 rows returned
 
 -- Checking for outliers
 
 SELECT
      Product_Quantity
 FROM 
-     QVI_transaction
+     QVI_transaction_data
 ORDER BY 1 DESC
+
 
 SELECT
      Product_Quantity
 FROM
-     QVI_transaction
+     QVI_transaction_data
 ORDER BY 1
 
---There are no outliers and datatypes for each column have been verified correctly before importing the data to the server
+-- There seem to be an outlier in Product_Quantity. 200 packs of chips seems abnormal so i will exclude it using "WHERE Product_Quantity <> 200"
+
+
+-- The product name category has a set of products not chips. That is the salsa products. I will also exclude it from my analysis
+
+SELECT *
+FROM 
+     QVI_transaction_data AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
+
+-- 246,740 rows returned. Meaning i have just the dataset i need
 
 
 -- Let's see the Total Sales generated over the year
@@ -31,17 +48,29 @@ ORDER BY 1
 SELECT 
      ROUND(SUM(Total_sales), 0) AS Total_Sales
 FROM 
-     QVI_transaction
+     QVI_transaction_data AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 
--- Julia has a Total Sales of $1,805,177
+-- Julia has a Total Sales of $1,805,172
 
 
 -- Let's also see the total number of Customers for the year
 
 SELECT 
-     COUNT(DISTINCT LYLTY_CARD_NBR) AS Total_Customers
+     COUNT(DISTINCT T.LYLTY_CARD_NBR) AS Total_Customers
 FROM 
-     QVI_transaction
+     QVI_transaction_data AS T
+JOIN 
+     QVI_Customer AS C
+ON 
+     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 
 -- A total of 71,287 Customers
 
@@ -54,11 +83,13 @@ SELECT
       C.Premium_customer,
       ROUND(SUM(Total_Sales), 0) AS TotalSales
 FROM 
-     QVI_transaction AS T
+     QVI_transaction_data AS T
 JOIN 
      QVI_Customer AS C
 ON 
      T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 GROUP BY 
      C.Lifestage, 
      C.Premium_customer
@@ -78,17 +109,19 @@ SELECT
       C.Premium_customer,
       COUNT(Distinct T.LYLTY_CARD_NBR) AS Total_Customers 
 FROM
-     QVI_transaction AS T
+     QVI_transaction_data AS T
 JOIN 
      QVI_Customer AS C
 ON 
      T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 GROUP BY 
      C.Lifestage,
      C.Premium_customer
 ORDER BY 3 DESC
 
--- After pulling out this query, Young Singles/Couples Mainstream had the highest number of Customers. 
+-- After pulling out this query, Young Singles/Couples Mainstream had the highest number of Customers with a total of 7,917 Customers.
 -- This contributes to there being more sales to these customer segments but this is not a major driver for the Budget - Older families segment.
 
 
@@ -98,11 +131,13 @@ SELECT
       C.Lifestage,
       SUM(Product_Quantity)/COUNT(DISTINCT T.LYLTY_CARD_NBR) AS AverageUnitTransaction
 FROM 
-     QVI_transaction AS T
+     QVI_transaction_data AS T
 JOIN 
      QVI_Customer AS C
 ON 
      T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 GROUP BY 
      C.Lifestage
 ORDER BY 2 DESC
@@ -117,11 +152,13 @@ SELECT
       C.Premium_customer,
       ROUND(SUM(Total_Sales)/SUM(Product_Quantity),2) AS AverageChipPrice
 FROM
-     QVI_transaction AS T
+     QVI_transaction_data AS T
 JOIN
      QVI_Customer AS C
 ON
      T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 GROUP BY
      C.Lifestage,
      C.Premium_customer
@@ -133,19 +170,25 @@ ORDER BY 3 DESC
 --We want to know the top 5 pack size that generated most Sales in general
 
 SELECT
-      TOP 5(Pack_Size),
-      ROUND(SUM(Total_Sales), 0) AS Total_Sales
-FROM
-     QVI_transaction AS T
-JOIN
-     QVI_Customer AS C
-ON
-     T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+     TOP 5(Pack_Size),
+     SUM(Total_Sales) AS Total_Sales
+FROM(
+    SELECT 
+         RIGHT(Product_Name, 4) AS Pack_Size,
+         ROUND(SUM(Total_Sales), 0) AS Total_Sales
+    FROM 
+         QVI_transaction_data AS T
+    JOIN 
+         QVI_Customer AS C
+    ON 
+         T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+    GROUP BY 
+         Product_Name) AS T1
 GROUP BY
      Pack_Size
 ORDER BY 2 DESC
 
--- 175g geenerated the most sales with a sales of $485,431
+-- 175g geenerated the most sales with a sales
 
 
 -- Lastly, let's see each month with their total sales
@@ -156,11 +199,13 @@ SELECT
       MONTH(date) AS Month,
       ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
 FROM
-     QVI_transaction AS T
+     QVI_transaction_data AS T
 JOIN
      QVI_Customer AS C
 ON
      T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+WHERE
+     Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
 GROUP BY 
      YEAR(date),
      MONTH(date)
@@ -176,11 +221,13 @@ FROM (
          MONTH(date) AS Month,
          ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
     FROM 
-         QVI_transaction AS T
+         QVI_transaction_data AS T
     JOIN
          QVI_Customer AS C
     ON 
          T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+    WHERE
+         Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
     GROUP BY
          YEAR(date),
          MONTH(date)) AS Y
@@ -194,11 +241,13 @@ FROM (
          MONTH(date) AS Month,
          ROUND(SUM(Total_Sales), 0) AS Monthly_Sales
     FROM
-         QVI_transaction AS T
+         QVI_transaction_data AS T
     JOIN
          QVI_Customer AS C
     ON
          T.LYLTY_CARD_NBR = C.LYLTY_CARD_NBR
+    WHERE
+         Product_Name NOT LIKE '%salsa%' AND Product_Quantity <> 200
     GROUP BY
          YEAR(date),
          MONTH(date)) AS T1
